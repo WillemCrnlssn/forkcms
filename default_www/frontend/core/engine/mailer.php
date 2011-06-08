@@ -1,13 +1,14 @@
 <?php
 
 /**
- * This class will send mails
+ * This class will send mails.
  *
  * @package		frontend
  * @subpackage	core
  *
  * @author		Tijs Verkoyen <tijs@sumocoders.be>
  * @author		Dieter Vanden Eynde <dieter@dieterve.be>
+ * @author		Davy Hellemans <davy@spoon-library.com>
  * @since		2.0
  */
 class FrontendMailer
@@ -16,109 +17,87 @@ class FrontendMailer
 	 * Adds an email to the queue.
 	 *
 	 * @return	void
-	 * @param	string $subject					The subject for the email.
-	 * @param	string $template				The template to use.
-	 * @param	array[optional] $variables		Variables that should be assigned in the email.
-	 * @param	string[optional] $toEmail		The to-address for the email.
-	 * @param	string[optional] $toName		The to-name for the email.
-	 * @param	string[optional] $fromEmail		The from-address for the mail.
-	 * @param	string[optional] $fromName		The from-name for the mail.
-	 * @param	string[optional] $replyToEmail	The replyto-address for the mail.
-	 * @param	string[optional] $replyToName	The replyto-name for the mail.
-	 * @param	bool[optional] $queue			Should the mail be queued?
-	 * @param	int[optional] $sendOn			When should the email be send, only used when $queue is true.
-	 * @param	bool[optional] $isRawHTML		If this is true $template will be handled as raw HTML, so no parsing of $variables is done.
-	 * @param	string[optional] $plainText		The plain text version.
-	 * @param	array[optional] $attachments	Paths to attachments to include.
+	 * @param	FrontendMail $email		The email object.
+	 * @param	int[optional] $sendOn	The date we need to send this email. Null means right now.
 	 */
-	public static function addEmail($subject, $template, array $variables = null, $toEmail = null, $toName = null, $fromEmail = null, $fromName = null, $replyToEmail = null, $replyToName = null, $queue = false, $sendOn = null, $isRawHTML = false, $plainText = null, array $attachments = null)
+	public static function addEmail(FrontendMail $email, $sendOn = null)
 	{
-		// redefine
-		$subject = (string) strip_tags($subject);
-		$template = (string) $template;
-
 		// set defaults
 		$to = FrontendModel::getModuleSetting('core', 'mailer_to');
 		$from = FrontendModel::getModuleSetting('core', 'mailer_from');
 		$replyTo = FrontendModel::getModuleSetting('core', 'mailer_reply_to');
-		$utm = array('utm_source' => 'mail', 'utm_medium' => 'email', 'utm_campaign' => SpoonFilter::urlise($subject));
+		$utm = array(
+			'utm_source' => 'mail',
+			'utm_medium' => 'email',
+			'utm_campaign' => SpoonFilter::urlise($email->getSubject())
+		);
 
-		// set recipient/sender headers
-		$email['to_email'] = (empty($toEmail)) ? (string) $to['email'] : $toEmail;
-		$email['to_name'] = (empty($toName)) ? (string) $to['name'] : $toName;
-		$email['from_email'] = (empty($fromEmail)) ? (string) $from['email'] : $fromEmail;
-		$email['from_name'] = (empty($fromName)) ? (string) $from['name'] : $fromName;
-		$email['reply_to_email'] = (empty($replyToEmail)) ? (string) $replyTo['email'] : $replyToEmail;
-		$email['reply_to_name'] = (empty($replyToName)) ? (string) $replyTo['name'] : $replyToName;
+		// to
+		$item['to_email'] = (!$email->getToEmail()) ? $to['email'] : $email->getToEmail();
+		$item['to_name'] = (!$email->getToName()) ? $to['name'] : $email->getToName();
 
-		// validate
-		if(!empty($email['to_email']) && !SpoonFilter::isEmail($email['to_email'])) throw new FrontendException('Invalid e-mail address for recipient.');
-		if(!empty($email['from_email']) && !SpoonFilter::isEmail($email['from_email'])) throw new FrontendException('Invalid e-mail address for sender.');
-		if(!empty($email['reply_to_email']) && !SpoonFilter::isEmail($email['reply_to_email'])) throw new FrontendException('Invalid e-mail address for reply-to address.');
+		// from
+		$item['from_email'] = (!$email->getFromEmail()) ? $from['email'] : $email->getFromEmail();
+		$item['from_name'] = (!$email->getFromName()) ? $from['name'] : $email->getFromName();
 
-		// build array
-		$email['subject'] = SpoonFilter::htmlentitiesDecode($subject);
-		if($isRawHTML) $email['html'] = $template;
-		else $email['html'] = self::getTemplateContent($template, $variables);
-		if($plainText !== null) $email['plain_text'] = $plainText;
-		$email['created_on'] = FrontendModel::getUTCDate();
+		// reply to
+		$item['reply_to_email'] = (!$email->getReplyToEmail()) ? $replyTo['email'] : $email->getReplyToEmail();
+		$item['reply_to_name'] = (!$email->getReplyToName()) ? $replyTo['name'] : $email->getReplyToName();
 
-		// init var
-		$matches = array();
+		// validate the required e-mail addresses
+		if(!empty($item['to_email']) && !SpoonFilter::isEmail($item['to_email'])) throw new FrontendException('Invalid recipeient e-mail address.');
+		if(!empty($item['from_email']) && !SpoonFilter::isEmail($item['from_email'])) throw new FrontendException('Invalid sender e-mail address.');
+		if(!empty($item['reply_to_email']) && !SpoonFilter::isEmail($item['reply_to_email'])) throw new FrontendException('Invalid reply-to e-mail address.');
 
-		// get internal links
-		preg_match_all('|href="/(.*)"|i', $email['html'], $matches);
+		// subject, plaintext, html & created on
+		$item['subject'] = SpoonFilter::htmlentitiesDecode($email->getSubject());
+		$item['html'] = ($email->getTemplate() === null) ? $email->getBody() : self::getTemplateContent($email->getTemplate(), $email->getVariables());
+		if($email->getPlainText() !== null) $item['plain_text'] = $email->getPlainText();
+		$item['created_on'] = FrontendModel::getUTCDate();
 
-		// any links?
-		if(!empty($matches[0]))
+		// prepend site url
+		$item['html'] = self::prependSiteUrl($item['html'], SITE_URL);
+
+		// append utm code
+		$item['html'] = self::appendUtm($item['html'], $utm);
+
+		// add attachments
+		if(count($email->getAttachments()))
 		{
-			// init vars
-			$search = array();
-			$replace = array();
-
-			// loop the links
-			foreach($matches[0] as $key => $link)
-			{
-				$search[] = $link;
-				$replace[] = 'href="' . SITE_URL . '/' . $matches[1][$key] . '"';
-			}
-
-			// replace
-			$email['html'] = str_replace($search, $replace, $email['html']);
+			$item['attachments'] = serialize($email->getAttachments());
 		}
 
-		// init var
-		$matches = array();
-
-		// get internal urls
-		preg_match_all('|src="/(.*)"|i', $email['html'], $matches);
-
-		// any links?
-		if(!empty($matches[0]))
+		/*
+		 * Add the date to send this object. If no date is set, this e-mail will be sent
+		 * immediately instead of being added to the queue.
+		 */
+		if($sendOn !== null)
 		{
-			// init vars
-			$search = array();
-			$replace = array();
-
-			// loop the links
-			foreach($matches[0] as $key => $link)
-			{
-				$search[] = $link;
-				$replace[] = 'src="' . SITE_URL . '/' . $matches[1][$key] . '"';
-			}
-
-			// replace
-			$email['html'] = str_replace($search, $replace, $email['html']);
+			$item['send_on'] = FrontendModel::getUTCDate('Y-m-d H:i:s', (int) $sendOn);
 		}
 
+		// insert the email into the database
+		$id = FrontendModel::getDB(true)->insert('emails', $item);
+
+		// send e-mail right now
+		if(!$sendOn) self::send($id);
+	}
+
+
+	/**
+	 * Append an utm string to all internal links.
+	 *
+	 * @return	string
+	 * @param	string $string		The string to search for links.
+	 * @param	array $utm			The utm codes as an array.
+	 */
+	public static function appendUtm($string, array $utm)
+	{
 		// init var
 		$matches = array();
 
 		// match links
-		preg_match_all('/href="(http:\/\/(.*))"/iU', $email['html'], $matches);
-
-		// any links?
-		if(isset($matches[0]) && !empty($matches[0]))
+		if(preg_match_all('/href="(http:\/\/(.*))"/iU', $string, $matches))
 		{
 			// init vars
 			$searchLinks = array();
@@ -132,35 +111,10 @@ class FrontendMailer
 			}
 
 			// replace
-			$email['html'] = str_replace($searchLinks, $replaceLinks, $email['html']);
+			$string = str_replace($searchLinks, $replaceLinks, $string);
 		}
 
-		// attachments added
-		if(!empty($attachments))
-		{
-			// add attachments one by one
-			foreach($attachments as $attachment)
-			{
-				// only add existing files
-				if(SpoonFile::exists($attachment)) $email['attachments'][] = $attachment;
-			}
-
-			// serialize :)
-			if(!empty($email['attachments'])) $email['attachments'] = serialize($email['attachments']);
-		}
-
-		// set send date
-		if($queue)
-		{
-			if($sendOn === null) $email['send_on'] = FrontendModel::getUTCDate('Y-m-d H') . ':00:00';
-			else $email['send_on'] = FrontendModel::getUTCDate('Y-m-d H:i:s', (int) $sendOn);
-		}
-
-		// insert the email into the database
-		$id = FrontendModel::getDB(true)->insert('emails', $email);
-
-		// if queue was not enabled, send this mail right away
-		if(!$queue) self::send($id);
+		return $string;
 	}
 
 
@@ -171,7 +125,6 @@ class FrontendMailer
 	 */
 	public static function getQueuedMailIds()
 	{
-		// return the ids
 		return (array) FrontendModel::getDB()->getColumn('SELECT e.id
 															FROM emails AS e
 															WHERE e.send_on < ?',
@@ -218,6 +171,40 @@ class FrontendMailer
 
 		// return the content
 		return (string) $cssToInlineStyles->convert();
+	}
+
+
+	/**
+	 * Prepend the site url to internal links.
+	 *
+	 * @return	string
+	 * @param	string $string	The string to prepend the url to all the links.
+	 * @param	string $url		The url to prepend to internal links.
+	 */
+	public static function prependSiteUrl($string, $url)
+	{
+		// init var
+		$matches = array();
+
+		// get internal links
+		if(preg_match_all('|href="/(.*)"|i', $string, $matches))
+		{
+			// init vars
+			$search = array();
+			$replace = array();
+
+			// loop the links
+			foreach($matches[0] as $key => $link)
+			{
+				$search[] = $link;
+				$replace[] = 'href="' . $url . '/' . $matches[1][$key] . '"';
+			}
+
+			// replace
+			$string = str_replace($search, $replace, $string);
+		}
+
+		return $string;
 	}
 
 
