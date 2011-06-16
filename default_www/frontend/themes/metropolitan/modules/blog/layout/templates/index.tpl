@@ -36,7 +36,7 @@
 					{option:items.introduction}{$items.introduction}{/option:items.introduction}
 				</div>
 
-				<div class="comments">
+				<div class="numComments">
 					{* Comments *}
 					{option:!items.comments}<a href="{$items.full_url}#{$actComment}">0</a>{/option:!items.comments}
 					{option:items.comments}

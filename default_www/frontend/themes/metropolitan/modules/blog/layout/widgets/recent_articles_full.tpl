@@ -12,7 +12,7 @@
 					{option:!widgetBlogRecentArticlesFull.introduction}{$widgetBlogRecentArticlesFull.text|truncate:300}{/option:!widgetBlogRecentArticlesFull.introduction}
 					{option:widgetBlogRecentArticlesFull.introduction}{$widgetBlogRecentArticlesFull.introduction}{/option:widgetBlogRecentArticlesFull.introduction}
 
-					<div class="comments"><a href="{$widgetBlogRecentArticlesFull.full_url}" class="readMore">{$widgetBlogRecentArticlesFull.comments_count}</a></div>
+					<div class="numComments"><a href="{$widgetBlogRecentArticlesFull.full_url}" class="readMore">{$widgetBlogRecentArticlesFull.comments_count}</a></div>
 			</div>
 		{/iteration:widgetBlogRecentArticlesFull}
 	{/option:widgetBlogRecentArticlesFull}
