@@ -8,11 +8,11 @@
 		{iteration:widgetBlogRecentArticlesFull}
 			<div class="col2">
 				<h3><a href="{$widgetBlogRecentArticlesFull.full_url}" title="{$widgetBlogRecentArticlesFull.title}">{$widgetBlogRecentArticlesFull.title}</a></h3>
-				
+
 					{option:!widgetBlogRecentArticlesFull.introduction}{$widgetBlogRecentArticlesFull.text|truncate:300}{/option:!widgetBlogRecentArticlesFull.introduction}
 					{option:widgetBlogRecentArticlesFull.introduction}{$widgetBlogRecentArticlesFull.introduction}{/option:widgetBlogRecentArticlesFull.introduction}
 
-				<span class="arrow"></span><a href="{$widgetBlogRecentArticlesFull.full_url}" class="readMore">Read more</a>
+					<div class="comments"><a href="{$widgetBlogRecentArticlesFull.full_url}" class="readMore">{$widgetBlogRecentArticlesFull.comments_count}</a></div>
 			</div>
 		{/iteration:widgetBlogRecentArticlesFull}
 	{/option:widgetBlogRecentArticlesFull}

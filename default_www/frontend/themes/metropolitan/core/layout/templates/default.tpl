@@ -49,7 +49,7 @@
 			{* SubNavigation *}
 			<nav id="subnavigation">
 				<h4 class="accessibility">{$lblSubnavigation|ucfirst}</h4>
-				{$var|getsubnavigation:'page':{$page.id}:2}
+				{$var|getsubnavigation:'page':{$page.id}:2:1}
 			</nav>
 
 			{* Block 2 (default: Editor) *}

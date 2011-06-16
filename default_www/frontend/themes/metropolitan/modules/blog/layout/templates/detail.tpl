@@ -19,7 +19,7 @@
 {* Comments *}
 
 {option:comments}
-	<section id="blogComments" class="container">
+	<section id="blogComments" class="container clearfix">
 		<div>
 			<header>
 				<div class="sectionTitle">
@@ -29,12 +29,13 @@
 			<div class="bd content">
 				{iteration:comments}
 					{* Do not alter the id! It is used as an anchor *}
-					<div id="comment-{$comments.id}" class="comment">
+					<div id="comment-{$comments.id}" class="comment clearfix">
 						<div class="imageHolder">
 							{option:comments.website}<a href="{$comments.website}">{/option:comments.website}
-								<img src="{$FRONTEND_CORE_URL}/layout/images/default_author_avatar.gif" alt="{$comments.author}" class="replaceWithGravatar" data-gravatar-id="{$comments.gravatar_id}" />
+								<img src="{$THEME_URL}/core/layout/images/default_author_avatar.gif" alt="{$comments.author}" class="replaceWithGravatar" data-gravatar-id="{$comments.gravatar_id}" />
 							{option:comments.website}</a>{/option:comments.website}
-
+						</div>
+						<div class="textHolder">
 							<div class="commentMeta">
 								<h3>{option:comments.website}<a href="{$comments.website}">{/option:comments.website}{$comments.author}{option:comments.website}</a>{/option:comments.website}</h3>
 
@@ -43,10 +44,10 @@
 									{$comments.created_on|timeago}
 								</p>
 							</div>
-						</div>
-						<div class="commentContent">
-							<div class="commentText content">
-								{$comments.text|cleanupplaintext}
+							<div class="commentContent">
+								<div class="commentText content">
+									{$comments.text|cleanupplaintext}
+								</div>
 							</div>
 						</div>
 					</div>
